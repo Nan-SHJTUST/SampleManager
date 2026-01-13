@@ -36,11 +36,12 @@
 
 ### Steps (步骤)
 
-1.  **Clone the repository (克隆仓库)**
-    ```bash
-    git clone https://github.com/Nan-SHJTUST/SampleManager.git
-    cd SampleManager
-    ```
+1. **Clone the repository (克隆仓库)**
+
+   ```bash
+   git clone https://github.com/Nan-SHJTUST/SampleManager.git
+   cd SampleManager
+   ···
 
 2.  **Install dependencies (安装依赖)**
     ```bash
@@ -48,10 +49,10 @@
     ```
 
 3.  **Run the App (运行系统)**
-    *   **Method A**: Double-click `run.bat` (if created).
+    *   **Method A**: Double-click `run.bat` (Recommended for Windows).
     *   **Method B**: Run command in terminal:
         ```bash
-        streamlit run app_final.py
+        streamlit run SampleManager.py
         ```
 
 ---
@@ -96,3 +97,4 @@ License: MIT License
 Note: This project was architected by a domain researcher and implemented with the assistance of AI coding tools. It is optimized for real-world laboratory workflows.
 
 注：本项目由一线科研人员设计架构，并由 AI 辅助开发实现，逻辑流针对真实实验室场景进行了深度优化。
+
