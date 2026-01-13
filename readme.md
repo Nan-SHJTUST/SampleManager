@@ -38,8 +38,8 @@
 
 1.  **Clone the repository (克隆仓库)**
     ```bash
-    git clone https://github.com/YourUsername/LabManager.git
-    cd LabManager
+    git clone https://github.com/Nan-SHJTUST/SampleManager.git
+    cd SampleManager
     ```
 
 2.  **Install dependencies (安装依赖)**
@@ -94,4 +94,5 @@ The system creates a `presets.json` on the first run. You can modify it in the "
 Author: [Catcher@SHJTUST]
 License: MIT License
 Note: This project was architected by a domain researcher and implemented with the assistance of AI coding tools. It is optimized for real-world laboratory workflows.
+
 注：本项目由一线科研人员设计架构，并由 AI 辅助开发实现，逻辑流针对真实实验室场景进行了深度优化。
