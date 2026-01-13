@@ -1,4 +1,5 @@
 @echo off
-echo [INFO] Launching LabManager...
+echo [INFO] Launching SampleManager...
 streamlit run SampleManager.py
+
 pause
