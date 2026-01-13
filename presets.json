@@ -1,0 +1,27 @@
+{
+    "PLD_Thin_Film": {
+        "Deposition": [
+            "Laser_Energy",
+            "Oxygen_Pressure",
+            "Temperature",
+            "Time"
+        ],
+        "XRD_Test": [
+            "Scan_Range",
+            "Speed"
+        ]
+    },
+    "Ceramic_Sintering": {
+        "Pressing": [
+            "Pressure",
+            "Time"
+        ],
+        "Sintering": [
+            "Temperature",
+            "Dwell_Time"
+        ],
+        "EIS_Test": [
+            "Temperature"
+        ]
+    }
+}
