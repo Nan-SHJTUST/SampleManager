@@ -10,7 +10,7 @@ from datetime import datetime
 import time
 
 # ================= 0. 全局配置 =================
-BASE_DIR = 'Sample_System_V25'
+BASE_DIR = 'Sample_System_V30'
 PROJECTS_DIR = os.path.join(BASE_DIR, 'Projects')
 BACKUP_DIR = os.path.join(BASE_DIR, 'Backups')
 CONFIG_FILE = os.path.join(BASE_DIR, 'presets.json')
@@ -18,14 +18,14 @@ CONFIG_FILE = os.path.join(BASE_DIR, 'presets.json')
 for path in [BASE_DIR, PROJECTS_DIR, BACKUP_DIR]:
     if not os.path.exists(path): os.makedirs(path)
 
-st.set_page_config(page_title="实验室 V25", layout="wide", page_icon="🧪")
+st.set_page_config(page_title="实验室 V30", layout="wide", page_icon="🧪")
 
-# === 🎨 CSS 样式 (保持 V24 的蓝色主题与悬浮设计) ===
+# === 🎨 CSS ===
 st.markdown("""
 <style>
     :root { --primary-color: #007bff; }
     
-    /* 悬浮保存球 */
+    /* 悬浮保存 */
     section[data-testid="stMain"] button[kind="primary"] {
         position: fixed !important; bottom: 40px !important; right: 40px !important;
         z-index: 999999 !important; width: auto !important; min-width: 150px !important;
@@ -54,9 +54,13 @@ st.markdown("""
         border: 1px dashed #ccc; margin-bottom: 10px;
     }
     
-    /* 新增：文件区样式 */
     .file-zone {
         border-top: 1px solid #eee; margin-top: 10px; padding-top: 10px;
+    }
+    
+    .new-file-alert {
+        color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba;
+        padding: 5px 10px; border-radius: 4px; margin-bottom: 5px; font-size: 0.9em;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -66,15 +70,8 @@ st.markdown("""
 def load_presets():
     if not os.path.exists(CONFIG_FILE):
         defaults = {
-            "PLD_Thin_Film": {
-                "Deposition": ["Laser_Energy", "Oxygen_Pressure", "Temperature", "Time"], 
-                "XRD_Test": ["Scan_Range", "Speed"]
-            },
-            "Ceramic_Sintering": {
-                "Pressing": ["Pressure", "Time"], 
-                "Sintering": ["Temperature", "Dwell_Time"], 
-                "EIS_Test": ["Temperature"]
-            }
+            "PLD_Thin_Film": {"Deposition": ["Laser_Energy", "Oxygen_Pressure"], "XRD_Test": ["Scan_Range"]},
+            "Ceramic_Sintering": {"Pressing": ["Pressure"], "Sintering": ["Temperature"]}
         }
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
             json.dump(defaults, f, ensure_ascii=False, indent=4)
@@ -90,19 +87,15 @@ def get_sample_folder(project_name, sample_id):
     if not os.path.exists(path): os.makedirs(path)
     return path
 
-def backup_project(project_name):
+def load_project_df(project_name):
     src = get_project_csv(project_name)
     if os.path.exists(src):
         date_str = datetime.now().strftime("%Y-%m-%d")
         dst = os.path.join(BACKUP_DIR, f"{project_name}_{date_str}.csv")
         if not os.path.exists(dst): shutil.copy2(src, dst)
-
-def load_project_df(project_name):
-    backup_project(project_name)
-    path = get_project_csv(project_name)
-    if os.path.exists(path):
+    if os.path.exists(src):
         try:
-            df = pd.read_csv(path)
+            df = pd.read_csv(src)
             if "Content_JSON" not in df.columns: df["Content_JSON"] = "{}"
             df = df.fillna("")
             for col in df.columns:
@@ -119,7 +112,7 @@ def open_local_file(filepath):
     if os.path.exists(filepath):
         if os.name == 'nt':
             try: os.startfile(filepath)
-            except Exception as e: st.error(f"Error: {e}")
+            except Exception as e: st.error(f"无法打开: {e}")
     else: st.error("文件不存在")
 
 def open_folder(path):
@@ -129,7 +122,24 @@ def open_folder(path):
 def sanitize_filename(name):
     return re.sub(r'[\\/*?:"<>|]', "_", name)
 
-# --- 业务操作 ---
+def scan_folder_files(folder_path):
+    if not os.path.exists(folder_path): return {}, []
+    all_files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+    linked = {}
+    unlinked = []
+    pattern = re.compile(r"^\[(.*?)\]--(.*)")
+    for f in all_files:
+        match = pattern.match(f)
+        if match:
+            mod_name = match.group(1)
+            real_name = match.group(2)
+            if mod_name not in linked: linked[mod_name] = []
+            linked[mod_name].append({"real_name": real_name, "full_name": f})
+        else:
+            if not f.startswith("~$") and f != "Thumbs.db": unlinked.append(f)
+    return linked, unlinked
+
+# --- CRUD ---
 def create_sample(project_name, df, template_data=None):
     i = 1
     existing = set(df["样品编号"].values)
@@ -191,7 +201,7 @@ def rename_sample(project_name, df, old_id, new_id):
 # ================= 2. 主界面 =================
 
 with st.sidebar:
-    st.title("🧪 实验室 V25")
+    st.title("🧪 实验室 V30")
     projects = [f.replace('.csv', '') for f in os.listdir(PROJECTS_DIR) if f.endswith('.csv')]
     if projects:
         current_project = st.selectbox("当前项目", projects)
@@ -210,7 +220,7 @@ if current_project:
     df = load_project_df(current_project)
     if 'edit_id' not in st.session_state: st.session_state['edit_id'] = None
 
-    # --- A. 列表模式 ---
+    # --- A. 列表 ---
     if st.session_state['edit_id'] is None:
         c1, c2 = st.columns([2, 3])
         with c1:
@@ -226,7 +236,6 @@ if current_project:
                         st.session_state['edit_id'] = nid
                         st.rerun()
         with c2: search = st.text_input("Search", label_visibility="collapsed", placeholder="搜索...")
-        
         st.divider()
         view_df = df
         if search: view_df = df[df.apply(lambda x: str(x.values).find(search)!=-1, axis=1)]
@@ -243,8 +252,8 @@ if current_project:
                     st.caption(f"{str(row['备注'])[:20]}")
                 with cols[2]:
                     stt = row['状态']
-                    color = "orange" if stt=="制备中" else "green" if stt=="完成" else "blue"
-                    st.markdown(f":{color}[● {stt}] &nbsp; {row['创建日期']}")
+                    col = "orange" if stt=="制备中" else "green" if stt=="完成" else "blue"
+                    st.markdown(f":{col}[● {stt}] &nbsp; {row['创建日期']}")
                 with cols[3]:
                     b1, b2, b3 = st.columns(3)
                     with b1.popover("✏️"):
@@ -258,7 +267,7 @@ if current_project:
                         delete_sample(current_project, df, sid); st.rerun()
                 st.markdown("<hr style='margin:5px 0'>", unsafe_allow_html=True)
 
-    # --- B. 编辑模式 ---
+    # --- B. 编辑 ---
     else:
         sid = st.session_state['edit_id']
         try:
@@ -271,105 +280,112 @@ if current_project:
         if c1.button("⬅️ 返回列表", use_container_width=True): st.session_state['edit_id']=None; st.rerun()
         c2.markdown(f"### 🛠️ {sid}")
         folder = get_sample_folder(current_project, sid)
-        # 顶部的总文件夹按钮保留
-        if c3.button("📂 打开文件夹", use_container_width=True): open_folder(folder)
+        if c3.button("📂 打开总文件夹", use_container_width=True): open_folder(folder)
         st.markdown("---")
 
         sc1, sc2, sc3 = st.columns(3)
         sts = ["制备中", "待测试", "完成", "报废"]
-        idx_s = sts.index(cur["状态"]) if cur["状态"] in sts else 0
-        n_st = sc1.selectbox("状态", sts, index=idx_s)
+        n_st = sc1.selectbox("状态", sts, index=sts.index(cur["状态"]) if cur["状态"] in sts else 0)
         n_dt = sc2.text_input("日期", value=str(cur["创建日期"]))
         n_nt = sc3.text_input("备注", value=str(cur["备注"]))
 
+        linked_files, unlinked_files = scan_folder_files(folder)
+
         st.markdown("#### 🧬 实验参数与数据")
         
-        final_content = {}
+        # 【恢复】全局模块删除器 - 稳定可靠
+        modules_list = list(content_json.keys())
         deleted_modules = []
+        if modules_list:
+            # 放在这里，用户选了，点保存，一定生效
+            deleted_modules = st.multiselect("🗑️ 选择要删除的模块", modules_list, placeholder="如不再需要，请勾选...")
+        
+        final_content = {}
         
         for mod_name, params in content_json.items():
-            with st.container():
-                # 模块标题行
-                mc1, mc2 = st.columns([5, 1])
-                mc1.markdown(f"#### 🔹 {mod_name}")
-                # 模块级的“打开文件夹”按钮，方便直接定位
-                if mc2.button("📂 文件夹", key=f"open_mod_{mod_name}", help="打开此样品的文件夹"):
-                    open_folder(folder)
+            if mod_name in deleted_modules: continue # 跳过被删除的
 
-                # 管理区
-                with st.expander("⚙️ 管理模块 (增删参数)"):
-                    ac1, ac2 = st.columns([4, 1])
-                    with ac1:
-                        aac1, aac2, aac3 = st.columns([2, 2, 3])
-                        nk = aac1.text_input("名", placeholder="+参数", key=f"npk_{mod_name}", label_visibility="collapsed")
-                        nv = aac2.text_input("值", placeholder="值", key=f"npv_{mod_name}", label_visibility="collapsed")
-                        dk = aac3.multiselect("删参数", list(params.keys()), key=f"dk_{mod_name}", label_visibility="collapsed")
-                    with ac2:
-                        if st.checkbox("删模块", key=f"dm_{mod_name}"): deleted_modules.append(mod_name)
+            with st.container():
+                mh1, mh2 = st.columns([5, 1])
+                mh1.markdown(f"#### 🔹 {mod_name}")
+                if mh2.button("📂 整理", key=f"fo_{mod_name}", help="打开文件夹"): open_folder(folder)
 
                 # 参数区
-                curr_params = params.copy()
-                if nk: curr_params[nk] = nv
-                valid_params = {}
-                if curr_params:
-                    p_cols = st.columns(3)
-                    idx = 0
-                    for k, v in curr_params.items():
-                        if k not in dk:
-                            with p_cols[idx % 3]:
-                                valid_params[k] = st.text_input(k, value=str(v), key=f"v_{sid}_{mod_name}_{k}")
-                            idx += 1
+                with st.expander("⚙️ 参数管理", expanded=False):
+                    mc1, mc2 = st.columns([3, 1])
+                    npk = mc1.text_input("名", placeholder="+参数", key=f"npk_{mod_name}", label_visibility="collapsed")
+                    npv = mc2.text_input("值", placeholder="值", key=f"npv_{mod_name}", label_visibility="collapsed")
+                    dk = st.multiselect("删除参数", list(params.keys()), key=f"dk_{mod_name}")
 
-                # --- 文件展示区 (核心改进) ---
+                curr_params = params.copy()
+                if npk: curr_params[npk] = npv
+                
+                valid_params = {}
+                p_cols = st.columns(3)
+                idx = 0
+                for k, v in curr_params.items():
+                    if k not in dk:
+                        with p_cols[idx % 3]:
+                            valid_params[k] = st.text_input(k, value=str(v) if v else "", key=f"v_{sid}_{mod_name}_{k}")
+                        idx += 1
+
+                # 文件区
                 st.markdown('<div class="file-zone">', unsafe_allow_html=True)
-                
-                prefix = f"[{mod_name}]--"
-                file_count = 0
-                if os.path.exists(folder):
-                    # 统计该模块下的文件
-                    fs = [f for f in os.listdir(folder) if f.startswith(prefix)]
-                    file_count = len(fs)
-                
-                fc1, fc2 = st.columns([3, 1])
+                fc1, fc2 = st.columns([3, 2])
                 
                 with fc1:
-                    # 默认折叠，只显示数量，解决 EIS 几十个文件刷屏的问题
-                    with st.expander(f"📎 关联文件 (共 {file_count} 个)"):
-                        if file_count > 0:
-                            for f in fs:
-                                clean_name = f.replace(prefix, "")
-                                f_path = os.path.join(folder, f)
-                                
-                                # 单行显示：文件名 + 🚀打开按钮
+                    my_files = linked_files.get(mod_name, [])
+                    count_text = f"📎 已关联 ({len(my_files)})" if my_files else "📎 无关联文件"
+                    with st.expander(count_text, expanded=False):
+                        if my_files:
+                            for f_info in my_files:
+                                fname = f_info['real_name']
+                                fpath = os.path.join(folder, f_info['full_name'])
                                 fr1, fr2 = st.columns([4, 1])
-                                fr1.caption(clean_name)
-                                if fr2.button("🚀", key=f"op_{f}", help="打开文件"):
-                                    open_local_file(f_path)
-                        else:
-                            st.caption("暂无文件，请上传或直接拖入文件夹")
+                                fr1.caption(f"📄 {fname}")
+                                if fr2.button("🚀", key=f"op_{f_info['full_name']}"): open_local_file(fpath)
+                        else: st.caption("暂无")
 
                 with fc2:
-                    up = st.file_uploader("添加", key=f"u_{mod_name}", label_visibility="collapsed")
-                    if up:
-                        safe_name = sanitize_filename(up.name)
-                        with open(os.path.join(folder, prefix+safe_name), "wb") as f: f.write(up.getbuffer())
-                        st.toast("已上传")
-                        st.rerun()
-                
-                st.markdown('</div>', unsafe_allow_html=True)
+                    if unlinked_files:
+                        st.markdown(f"<div class='new-file-alert'>🔍 发现 {len(unlinked_files)} 个新文件!</div>", unsafe_allow_html=True)
+                        to_link = st.multiselect("认领文件", unlinked_files, key=f"lnk_{mod_name}", label_visibility="collapsed", placeholder="🔍 勾选认领...")
+                    else: to_link = []
+                    
+                    up = st.file_uploader("上传", key=f"u_{mod_name}", label_visibility="collapsed", accept_multiple_files=True)
 
-                if mod_name not in deleted_modules: final_content[mod_name] = valid_params
+                final_content[mod_name] = {
+                    "params": valid_params,
+                    "link_files": to_link,
+                    "new_uploads": up
+                }
                 st.markdown("---")
 
         nm = st.text_input("➕ 添加新模块", placeholder="输入名称...")
-        if nm and nm not in final_content: final_content[nm] = {}
-
+        
         st.markdown("<br><br><br>", unsafe_allow_html=True)
         if st.button("💾 保存所有修改 (Save)", type="primary"):
             df.at[row_idx, "状态"] = n_st
             df.at[row_idx, "创建日期"] = n_dt
             df.at[row_idx, "备注"] = n_nt
-            df.at[row_idx, "Content_JSON"] = json.dumps(final_content, ensure_ascii=False)
+            
+            clean = {}
+            if nm: clean[nm] = {}
+            for m_name, m_data in final_content.items():
+                clean[m_name] = m_data["params"]
+                prefix = f"[{sanitize_filename(m_name)}]--"
+                
+                for raw_f in m_data["link_files"]:
+                    try: os.rename(os.path.join(folder, raw_f), os.path.join(folder, prefix + raw_f))
+                    except: pass
+                
+                if m_data["new_uploads"]:
+                    for uf in m_data["new_uploads"]:
+                        try:
+                            with open(os.path.join(folder, prefix+sanitize_filename(uf.name)), "wb") as f: f.write(uf.getbuffer())
+                        except: pass
+
+            df.at[row_idx, "Content_JSON"] = json.dumps(clean, ensure_ascii=False)
             save_project_df(current_project, df)
             st.toast("✅ 已保存！")
             time.sleep(0.5)
